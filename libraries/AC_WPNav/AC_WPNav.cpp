@@ -303,6 +303,65 @@ void AC_WPNav::update_loiter()
     }
 }
 
+/// update_spline_velocity - run the loiter controller for
+/// SplineNav - should be called at 100hz
+/// return speed that loiter controller needs to keep up with target (adjusted for altitude error)
+float AC_WPNav::update_spline_velocity(const Vector3f &target, float dt)
+{
+    // catch if we've just been started
+    if( dt == 0.0f ) {
+        reset_I();
+    }
+
+    // set target location
+    _target = target;
+
+    // get current location
+    Vector3f curr = _inav->get_position();
+    
+    // calculate distance and alt error
+    dist_error.x = _target.x - curr.x;
+    dist_error.y = _target.y - curr.y;
+    float alt_error = _target.z - curr.z;
+    if (alt_error < 0.0) alt_error = 0.0; // worried about low altitude only
+
+    // compute desired velocity based on dist error
+    desired_vel.x = _pid_pos_lat->get_p(dist_error.x);
+    desired_vel.y = _pid_pos_lon->get_p(dist_error.y);
+
+    // use this formula so SplineNav can slow down if needed
+    // (pretending here that the alt error is actually some additional dist_error)
+    float chase_speed = desired_vel.length() + _pid_pos_lat->get_p(alt_error);
+    
+    // ensure velocity stays within limits
+    float vel_total_sq = desired_vel.x*desired_vel.x + desired_vel.y*desired_vel.y;
+    if( vel_total_sq > _loiter_speed_cms * _loiter_speed_cms) {
+        float vel_total = sqrt(vel_total_sq);
+        desired_vel.x = _loiter_speed_cms * desired_vel.x/vel_total;
+        desired_vel.y = _loiter_speed_cms * desired_vel.y/vel_total;
+    }
+    
+    // feed forward velocity request -- skip for now
+    //desired_vel.x += target_vel.x;
+    //desired_vel.y += target_vel.y;
+    
+    return chase_speed;
+}
+
+/// update acceleration values for spline based on
+/// velocities computed in update_spline_velocity
+void AC_WPNav::update_spline_acceleration(float dt) {
+    // call velocity to acceleration controller
+    get_loiter_velocity_to_acceleration(desired_vel.x, desired_vel.y, dt);    
+}
+
+/// update lean angles for spline based on acceleration values
+/// computed in update_spline_acceleration
+void AC_WPNav::update_spline_lean_angles() {    
+    // call accel based controller with desired acceleration
+    get_loiter_acceleration_to_lean_angles(desired_accel.x, desired_accel.y);
+}
+
 /// calculate_loiter_leash_length - calculates the maximum distance in cm that the target position may be from the current location
 void AC_WPNav::calculate_loiter_leash_length()
 {
