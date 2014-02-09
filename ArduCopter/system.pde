@@ -310,6 +310,7 @@ static bool mode_requires_GPS(uint8_t mode) {
         case LOITER:
         case RTL:
         case CIRCLE:
+        case SPLINE:
         case POSITION:
         case DRIFT:
             return true;
@@ -391,6 +392,16 @@ static bool set_mode(uint8_t mode)
                 set_throttle_mode(CIRCLE_THR);
                 set_nav_mode(CIRCLE_NAV);
                 set_yaw_mode(CIRCLE_YAW);
+            }
+            break;
+
+        case SPLINE:
+            if (GPS_ok() || ignore_checks) {
+                success = true;
+                set_roll_pitch_mode(ROLL_PITCH_AUTO);
+                set_throttle_mode(THROTTLE_AUTO);
+                set_nav_mode(NAV_SPLINE);
+                set_yaw_mode(YAW_SPLINE);
             }
             break;
 
@@ -596,6 +607,9 @@ print_flight_mode(AP_HAL::BetterStream *port, uint8_t mode)
         break;
     case CIRCLE:
         port->print_P(PSTR("CIRCLE"));
+        break;
+    case SPLINE:
+        port->print_P(PSTR("SPLINE"));
         break;
     case POSITION:
         port->print_P(PSTR("POSITION"));
