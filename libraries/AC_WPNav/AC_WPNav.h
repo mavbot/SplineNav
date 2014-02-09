@@ -66,6 +66,19 @@ public:
 
     /// update_loiter - run the loiter controller - should be called at 10hz
     void update_loiter();
+    
+    /// update_spline_velocity - run the loiter controller for
+    /// SplineNav - should be called at 100hz
+    /// return speed that loiter controller needs to keep up with target (adjusted for altitude error)
+    float update_spline_velocity(const Vector3f &target, float dt);
+    
+    /// update acceleration values for spline based on
+    /// velocities computed in update_spline_velocity
+    void update_spline_acceleration(float dt);
+    
+    /// update lean angles for spline based on acceleration values
+    /// computed in update_spline_acceleration
+    void update_spline_lean_angles();
 
     /// get_stopping_point - returns vector to stopping point based on a horizontal position and velocity
     void get_stopping_point(const Vector3f& position, const Vector3f& velocity, Vector3f &target) const;
