@@ -370,6 +370,26 @@ get_pitch_rate_stabilized_ef(int32_t stick_angle)
     set_pitch_rate_target(g.pi_stabilize_pitch.get_p(angle_error) + target_rate, EARTH_FRAME);
 }
 
+// curve yaw rate based on angle error and angular velocity around curve
+static void
+get_yaw_rate_spline()
+{
+    // get current yaw from SplineNav
+    nav_yaw = spline_nav.get_yaw();
+
+    // angle error computed as difference of desired and actual heading
+    int32_t angle_error = wrap_180_cd(nav_yaw - ahrs.yaw_sensor);
+    
+    // curve to help further smooth out effects of small jitter
+    angle_error = labs(angle_error) * angle_error / SPLINE_ANGLE_ERROR_SCALE;
+    
+    angle_error = constrain_int32(angle_error,
+            -SPLINE_MAX_YAW_OVERSHOOT, SPLINE_MAX_YAW_OVERSHOOT);
+    
+    // set earth frame targets for rate controller
+	set_yaw_rate_target(spline_nav.get_yaw_rate() + g.pi_stabilize_yaw.get_p(angle_error), EARTH_FRAME);
+}
+
 // Yaw with rate input and stabilized in the earth frame
 static void
 get_yaw_rate_stabilized_ef(int32_t stick_angle)
